@@ -2,33 +2,54 @@
 
 import sys
 
+print(sys.argv)
+
+# OP codes
+HLT = 0b00000001
+LDI = 0b10000010
+PRN = 0b01000111
+MUL = 0b10100010
+
 class CPU:
     """Main CPU class."""
 
     def __init__(self):
         """Construct a new CPU."""
-        pass
+        self.ram = [0] * 256
+        self.reg = [0] * 8
+        self.PC = 0
 
-    def load(self):
+    def load(self, filename):
         """Load a program into memory."""
 
-        address = 0
+        if len(sys.argv) != 2:                                                # if there aren't the correct num of args passed
+            print("usage: file.py filename")
+            sys.exit(1)
 
-        # For now, we've just hardcoded a program:
+        filename = sys.argv[1]                                                # grab program from args
 
-        program = [
-            # From print8.ls8
-            0b10000010, # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111, # PRN R0
-            0b00000000,
-            0b00000001, # HLT
-        ]
+        try:
+            address = 0
+            with open(filename) as program:
+                for line in program:
+                    no_comments = line.split('#')                                 # remove comments
+                    value = no_comments[0].strip()                                # grab the number
 
-        for instruction in program:
-            self.ram[address] = instruction
-            address += 1
+                    if value != "":                                         # ignore whitespace
+                        instruction = int(value, 2)                         # convert to binary
+                        self.ram_write(address, instruction)                # set the instruction to the address in ram
+                        address += 1                                        # inc address
+                    else:
+                        continue
+        except FileNotFoundError:                                           # if try fails, FileNotFoundError and exit
+            print("ERROR: file not found")
+            sys.exit(1)
+
+
+
+
+
+
 
 
     def alu(self, op, reg_a, reg_b):
@@ -36,9 +57,15 @@ class CPU:
 
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
-        #elif op == "SUB": etc
+        if op == "SUB":
+            self.reg[reg_a] -= self.reg[reg_b]
         else:
             raise Exception("Unsupported ALU operation")
+
+
+
+
+
 
     def trace(self):
         """
@@ -47,12 +74,12 @@ class CPU:
         """
 
         print(f"TRACE: %02X | %02X %02X %02X |" % (
-            self.pc,
-            #self.fl,
-            #self.ie,
-            self.ram_read(self.pc),
-            self.ram_read(self.pc + 1),
-            self.ram_read(self.pc + 2)
+            self.PC,
+            # self.fl,
+            # self.ie,
+            self.ram_read(self.PC),
+            self.ram_read(self.PC + 1),
+            self.ram_read(self.PC + 2)
         ), end='')
 
         for i in range(8):
@@ -60,6 +87,48 @@ class CPU:
 
         print()
 
+
+
+
+
+
+
+
+    def ram_read(self, MAR):
+        return self.ram[MAR]
+    
+    def ram_write(self, MAR, MDR):
+        self.ram[MAR] = MDR
+
+
+
+
+
+
+
+
+
+
+
     def run(self):
         """Run the CPU."""
-        pass
+        running = True
+
+        while running:
+            IR = self.ram_read(self.PC)
+            operand_a = self.ram_read(self.PC + 1)
+            operand_b = self.ram_read(self.PC + 2)
+
+            if IR == HLT:
+                running = False
+
+            else:
+                num_operands = IR >> 6
+                print(num_operands)
+
+                if IR == LDI:
+                    self.ram_write(operand_a, operand_b)
+                    self.PC += 3
+                elif IR == PRN:
+                    self.ram_read(operand_a)
+                    self.PC += 2
